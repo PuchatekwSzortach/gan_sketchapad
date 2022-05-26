@@ -1,0 +1,2 @@
+epochs: 200
+logger_path: "/tmp/logger.html"
