@@ -19,7 +19,7 @@ def train_mnist_gan(_context, config_path):
     import tensorflow as tf
 
     import net.data
-    # import net.ml
+    import net.ml
     import net.processing
     import net.utilities
 
@@ -34,12 +34,9 @@ def train_mnist_gan(_context, config_path):
         shuffle=True
     )
 
-    print(config)
-    print(data_loader)
-
-    # net.ml.GanTrainingManager(
-    #     gan_container=net.ml.MNISTGANContainer(noise_input_size=100),
-    #     data_loader=data_loader,
-    #     epochs=config["epochs"],
-    #     logger=net.utilities.get_logger(config["logger_path"])
-    # ).train()
+    net.ml.GanTrainingManager(
+        gan_container=net.ml.MNISTGANContainer(noise_input_size=100),
+        data_loader=data_loader,
+        epochs=config["epochs"],
+        logger=net.utilities.get_logger(config["logger_path"])
+    ).train()
