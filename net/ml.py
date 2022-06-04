@@ -4,6 +4,7 @@ Module with machine learning related code
 
 import logging
 
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import tqdm
@@ -103,15 +104,57 @@ class GanTrainingManager:
         self.epochs = epochs
         self.logger = logger
 
+    def log_results(self, epoch: int, generator_losses: list, discriminator_losses: list):
+        """
+        Log results
+        """
+
+        if epoch % 10 == 0:
+
+            self.logger.info(f"<h2>Epoch {epoch}</h2><br>")
+
+            noise = np.random.normal(0, 1, size=[10, self.gan_container.noise_input_shape])
+            generated_images_vectors = self.gan_container.generator_model.predict(noise)
+
+            generated_images = (255 * generated_images_vectors.reshape((-1, 28, 28))).astype(np.int32)
+
+            self.logger.info(vlogging.VisualRecord(
+                title="generated images",
+                imgs=list(generated_images)
+            ))
+
+        if epoch > 0 and epoch % 10 == 0:
+
+            figure = plt.figure()
+
+            x_range = list(range(len(generator_losses)))
+
+            plt.plot(x_range, discriminator_losses, label="discriminator")
+            plt.plot(x_range, generator_losses, label="generator")
+
+            plt.legend()
+
+            self.logger.info(vlogging.VisualRecord(
+                title="losses",
+                imgs=figure
+            ))
+
     def train(self):
         """
         Train GAN
         """
 
+        average_epochs_losses = {
+            "generator_losses": [],
+            "discriminator_losses": []
+        }
+
         for epoch in range(self.epochs):
 
-            generator_losses = []
-            discriminator_losses = []
+            epoch_losses = {
+                "generator_losses": [],
+                "discriminator_losses": []
+            }
 
             print(f"Epoch {epoch}")
 
@@ -148,21 +191,14 @@ class GanTrainingManager:
 
                 generator_loss = self.gan_container.gan_model.train_on_batch(noise, generator_labels)
 
-                discriminator_losses.append(discriminator_loss)
-                generator_losses.append(generator_loss)
+                epoch_losses["generator_losses"].append(generator_loss)
+                epoch_losses["discriminator_losses"].append(discriminator_loss)
 
-            if epoch % 10 == 0:
+            average_epochs_losses["generator_losses"].append(np.mean(epoch_losses["generator_losses"]))
+            average_epochs_losses["discriminator_losses"].append(np.mean(epoch_losses["discriminator_losses"]))
 
-                self.logger.info(f"<h2>Epoch {epoch}</h2><br>")
-                self.logger.info(f"generator loss: {np.mean(generator_losses):.3f} <br>")
-                self.logger.info(f"discriminator loss: {np.mean(discriminator_losses):.3f} <br>")
-
-                noise = np.random.normal(0, 1, size=[10, self.gan_container.noise_input_shape])
-                generated_images_vectors = self.gan_container.generator_model.predict(noise)
-
-                generated_images = (255 * generated_images_vectors.reshape((-1, 28, 28))).astype(np.int32)
-
-                self.logger.info(vlogging.VisualRecord(
-                    title="generated images",
-                    imgs=list(generated_images)
-                ))
+            self.log_results(
+                epoch=epoch,
+                generator_losses=average_epochs_losses["generator_losses"],
+                discriminator_losses=average_epochs_losses["discriminator_losses"]
+            )
