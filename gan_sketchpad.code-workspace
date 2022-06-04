@@ -1,0 +1,9 @@
+{
+	"folders": [
+		{
+			"uri": "vscode-remote://dev-container+2f55736572732f6b7562612f70726f6a656374732f6769746875622f67616e5f736b6574636861706164/workspaces/gan_sketchapad"
+		}
+	],
+	"remoteAuthority": "dev-container+2f55736572732f6b7562612f70726f6a656374732f6769746875622f67616e5f736b6574636861706164",
+	"settings": {}
+}
