@@ -94,7 +94,7 @@ def inserts_count_check(context):
 
             additions_count += len(additions)
 
-    threshold = 300
+    threshold = 400
 
     print(f"Inserts between origin/master and HEAD: {additions_count}/{threshold}")
 
