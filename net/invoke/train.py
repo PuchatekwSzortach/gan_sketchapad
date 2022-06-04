@@ -9,7 +9,6 @@ import invoke
 def train_mnist_gan(_context, config_path):
     """
     Train a simple GAN on MNIST dataset.
-    Based on https://github.com/Zackory/Keras-MNIST-GAN/
 
     Args:
         _context (invoke.Context): invoke context instance
@@ -28,20 +27,15 @@ def train_mnist_gan(_context, config_path):
 
     (x_train, y_train), _ = tf.keras.datasets.mnist.load_data()
 
-    gan_container = net.ml.GANContainer(
-        noise_input_shape=10,
-        generated_output_shape=784
-    )
-
     data_loader = net.data.MnistDataLoader(
-        images=x_train.astype(np.float32).reshape(len(x_train), -1) / 256,
+        images=np.expand_dims(x_train.astype(np.float32) / 256, axis=-1),
         labels=y_train.astype(np.float32),
         batch_size=1024,
         shuffle=True
     )
 
     net.ml.GanTrainingManager(
-        gan_container=gan_container,
+        gan_container=net.ml.MNISTGANContainer(noise_input_size=100),
         data_loader=data_loader,
         epochs=config["epochs"],
         logger=net.utilities.get_logger(config["logger_path"])

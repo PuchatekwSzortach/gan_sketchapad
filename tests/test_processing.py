@@ -16,11 +16,11 @@ def test_get_batched_data_generator():
     y_data = x_data % 3
     batch_size = 4
 
-    expected = [
+    expected = np.array([
         ([0, 1, 2, 3], [0, 1, 2, 0]),
         ([4, 5, 6, 7], [1, 2, 0, 1]),
         ([8, 9, 10, 11], [2, 0, 1, 2])
-    ]
+    ])
 
     actual = net.processing.get_batched_data_generator(
         x_data=x_data,
@@ -29,7 +29,3 @@ def test_get_batched_data_generator():
     )
 
     assert np.all(expected == list(actual))
-    # import icecream
-    # # print()
-    # # icecream.ic(expected)
-    # # icecream.ic(list(actual))
