@@ -427,17 +427,6 @@ class ConditinalGanTrainingManager:
                 discriminator_losses=average_epochs_losses["discriminator_losses"]
             )
 
-    def _get_images_batch_shaped_labels(self, labels):
-        """
-        Convert a batch of categorical labels to a batch of image shaped labels representations
-        """
-
-        batch_size = len(labels)
-        encoded_labels = tf.keras.utils.to_categorical(labels, num_classes=self.categories_count)
-        reshaped_encoded_labels = encoded_labels.reshape(batch_size, 1, 1, self.categories_count)
-
-        return np.tile(reshaped_encoded_labels, (1, 28, 28, 1))
-
     def log_results(self, epoch: int, generator_losses: list, discriminator_losses: list):
         """
         Log results
