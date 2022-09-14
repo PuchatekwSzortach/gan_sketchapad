@@ -144,7 +144,9 @@ disable=print-statement,
         # Unfortunately pylint has problems analyzing tensorflow code properly
         unexpected-keyword-arg,
         unnecessary-comprehension,
-        consider-using-enumerate
+        consider-using-enumerate,
+        abstract-method,
+        arguments-differ
 
 
 # Enable the message, report, category or checker with the given id(s). You can

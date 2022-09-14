@@ -474,3 +474,244 @@ class ConditinalGanTrainingManager:
                 title="losses",
                 imgs=figure
             ))
+
+
+class ConditionalGanCallback(tf.keras.callbacks.Callback):
+    """
+    Callback for keras-based conditional gan model
+    """
+
+    def __init__(self, logger: logging.Logger):
+
+        super().__init__()
+
+        self.logger = logger
+
+    def on_epoch_end(self, epoch, logs=None):
+
+        if epoch % 10 == 0:
+
+            self.logger.info(f"<h2>Epoch {epoch}</h2>")
+
+            images_per_category = 4
+
+            noise = np.random.normal(
+                0, 1, size=[images_per_category * self.model.categories_count, self.model.noise_input_size])
+
+            artificial_labels = np.tile(
+                range(self.model.categories_count), images_per_category).astype(np.float32)
+
+            generated_images = (255 * self.model.generator.predict(
+                [noise, artificial_labels]).reshape(-1, 28, 28)).astype(np.int32)
+
+            figure = plt.figure()
+
+            for index in range(len(generated_images)):
+                plt.subplot(images_per_category, self.model.categories_count, index + 1)
+                plt.axis("off")
+                plt.imshow(generated_images[index], cmap="gray")
+
+            self.logger.info(vlogging.VisualRecord(
+                title="generated images",
+                imgs=figure
+            ))
+
+
+class KerasBasedMINSTConditionalGanModel(tf.keras.Model):
+    """
+    Keras based mnist conditional gan model
+    """
+
+    def __init__(self, noise_input_size: int, categories_count: int, batch_size: int):
+        """
+        Constructor
+
+        Args:
+            noise_input_size (int): noise input size
+            categories_count (int): categories count
+        """
+
+        super().__init__()
+
+        generator_noise_input = tf.keras.layers.Input(shape=noise_input_size)
+        generator_label_input = tf.keras.layers.Input(shape=(1,))
+
+        self.noise_input_size = noise_input_size
+        self.batch_size = batch_size
+
+        self.categories_count = categories_count
+
+        self.models_to_parameters_map = {
+            "generator": {
+                "loss_tracker": tf.keras.metrics.Mean(name="generator_loss"),
+            },
+            "discriminator": {
+                "loss_tracker": tf.keras.metrics.Mean(name="discriminator_loss")
+            }
+        }
+
+        self.generator = self._build_generator_model(
+            noise_input=generator_noise_input,
+            label_input=generator_label_input,
+            categories_count=categories_count
+        )
+
+        self.discriminator = self._build_discriminator_model(
+            image_shape=(28, 28, 1),
+            categories_count=categories_count
+        )
+
+        self.loss_function = None
+
+    def _build_generator_model(self, noise_input, label_input, categories_count) -> tf.keras.models.Model:
+
+        # Foundation for a 7x7 image
+        nodes_count = 128 * 7 * 7
+
+        x = tf.keras.layers.Dense(nodes_count, activation='relu')(noise_input)
+        x = tf.keras.layers.Reshape((7, 7, 128))(x)
+
+        # embedding for categorical input
+        label_embedding = tf.keras.layers.Embedding(categories_count, 50)(label_input)
+
+        # Transform embedding to size we can use as image channel
+        label_embedding = tf.keras.layers.Dense(7 * 7)(label_embedding)
+        label_embedding = tf.keras.layers.Reshape((7, 7, 1))(label_embedding)
+
+        # merge image generation branch with label embedding branch
+        x = tf.keras.layers.Concatenate()([x, label_embedding])
+
+        # upsample to 14x14
+        x = tf.keras.layers.Conv2DTranspose(128, (4, 4), strides=(2, 2), padding='same', activation='relu')(x)
+        # upsample to 28x28
+        x = tf.keras.layers.Conv2DTranspose(128, (4, 4), strides=(2, 2), padding='same', activation='relu')(x)
+
+        # Output layer, uses tanh because however hard we try sigmoid doesn't work, even though
+        # it should be a better choice than tanh...
+        x = tf.keras.layers.Conv2D(1, (7, 7), activation='tanh', padding='same')(x)
+
+        return tf.keras.models.Model(inputs=[noise_input, label_input], outputs=x, name="generator")
+
+    def _build_discriminator_model(self, image_shape, categories_count):
+
+        # label input
+        label_input = tf.keras.layers.Input(shape=(1,))
+        # embedding for categorical input
+        label_embedding = tf.keras.layers.Embedding(categories_count, 50)(label_input)
+
+        nodes_count = image_shape[0] * image_shape[1]
+
+        # scale up label embedding to image dimension
+        label_embedding = tf.keras.layers.Dense(nodes_count)(label_embedding)
+
+        # Add channel dimension to label embedding leg
+        label_embedding = tf.keras.layers.Reshape((image_shape[0], image_shape[1], 1))(label_embedding)
+
+        image_input = tf.keras.layers.Input(shape=image_shape)
+
+        # Merge image leg and label embedding leg
+        x = tf.keras.layers.Concatenate()([image_input, label_embedding])
+
+        # downsample
+        x = tf.keras.layers.Conv2D(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(x)
+        # downsample
+        x = tf.keras.layers.Conv2D(128, (3, 3), strides=(2, 2), padding='same', activation='relu')(x)
+
+        x = tf.keras.layers.Flatten()(x)
+
+        # dropout
+        x = tf.keras.layers.Dropout(0.4)(x)
+
+        x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+
+        # define and compile model
+        model = tf.keras.models.Model([image_input, label_input], x, name="discriminator")
+
+        return model
+
+    def compile(self, generator_optimizer, discriminator_optimizer, loss_function):
+
+        super().compile()
+
+        self.models_to_parameters_map["generator"]["optimizer"] = generator_optimizer
+        self.models_to_parameters_map["discriminator"]["optimizer"] = discriminator_optimizer
+
+        self.loss_function = loss_function
+
+    def _train_discriminator(self, real_images, real_labels):
+
+        # Create input for generator model - noise and artificial labels
+        noise = tf.random.normal(
+            shape=(self.batch_size, self.noise_input_size), mean=0, stddev=1
+        )
+
+        artificial_labels = tf.cast(tf.random.uniform(
+            minval=0, maxval=self.categories_count, shape=(self.batch_size,), dtype=tf.int32), tf.float32)
+
+        # Generate images
+        artificial_images = self.generator([noise, artificial_labels])
+
+        # Combine real and generated images, then labels
+        combined_images = tf.concat([real_images, artificial_images], axis=0)
+        combined_labels = tf.concat([real_labels, artificial_labels], axis=0)
+
+        # Create labels for discriminator
+        # Make truth labels for real images "smooth" by setting them to 0.9 instead of 1
+        target_labels = tf.concat(
+            [
+                0.9 * tf.ones(shape=self.batch_size, dtype=tf.float32),
+                tf.zeros(shape=self.batch_size, dtype=tf.float32)
+            ], axis=0
+        )
+
+        # # Train discriminator
+        with tf.GradientTape() as discriminator_tape:
+
+            discriminator_predictions = self.discriminator([combined_images, combined_labels])
+            discriminator_loss = self.loss_function(target_labels, discriminator_predictions)
+
+        discriminator_gradients = discriminator_tape.gradient(
+            discriminator_loss, self.discriminator.trainable_weights)
+
+        self.models_to_parameters_map["discriminator"]["optimizer"].apply_gradients(
+            zip(discriminator_gradients, self.discriminator.trainable_weights)
+        )
+
+        self.models_to_parameters_map["discriminator"]["loss_tracker"].update_state(discriminator_loss)
+
+    def train_step(self, data):
+
+        # Unpack the data
+        real_images, real_labels = data
+
+        self._train_discriminator(real_images, real_labels)
+
+        # Create input for generator model - noise and artificial labels
+        noise = tf.random.normal(
+            shape=(2 * self.batch_size, self.noise_input_size), mean=0, stddev=1
+        )
+
+        artificial_labels = tf.cast(tf.random.uniform(
+            minval=0, maxval=self.categories_count, shape=(2 * self.batch_size,), dtype=tf.int32), tf.float32)
+
+        # Create target labels - labels we want discriminator to predict on generated images when
+        # training generator
+        target_labels = tf.ones((2 * self.batch_size,), dtype=np.float32)
+
+        with tf.GradientTape() as generator_tape:
+
+            artificial_images = self.generator([noise, artificial_labels])
+            discriminator_predictions = self.discriminator([artificial_images, artificial_labels])
+            generator_loss = self.loss_function(target_labels, discriminator_predictions)
+
+        generator_gradients = generator_tape.gradient(generator_loss, self.generator.trainable_weights)
+
+        self.models_to_parameters_map["generator"]["optimizer"].apply_gradients(
+            zip(generator_gradients, self.generator.trainable_weights))
+
+        self.models_to_parameters_map["generator"]["loss_tracker"].update_state(generator_loss)
+
+        return {
+            "generator_loss": self.models_to_parameters_map["generator"]["loss_tracker"].result(),
+            "discriminator_loss": self.models_to_parameters_map["discriminator"]["loss_tracker"].result(),
+        }
