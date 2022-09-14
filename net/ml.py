@@ -541,7 +541,7 @@ class KerasBasedMINSTConditionalGanModel(tf.keras.Model):
 
         self.categories_count = categories_count
 
-        self.models_parameters_map = {
+        self.models_to_parameters_map = {
             "generator": {
                 "loss_tracker": tf.keras.metrics.Mean(name="generator_loss"),
             },
@@ -633,8 +633,8 @@ class KerasBasedMINSTConditionalGanModel(tf.keras.Model):
 
         super().compile()
 
-        self.models_parameters_map["generator"]["optimizer"] = generator_optimizer
-        self.models_parameters_map["discriminator"]["optimizer"] = discriminator_optimizer
+        self.models_to_parameters_map["generator"]["optimizer"] = generator_optimizer
+        self.models_to_parameters_map["discriminator"]["optimizer"] = discriminator_optimizer
 
         self.loss_function = loss_function
 
@@ -673,11 +673,11 @@ class KerasBasedMINSTConditionalGanModel(tf.keras.Model):
         discriminator_gradients = discriminator_tape.gradient(
             discriminator_loss, self.discriminator.trainable_weights)
 
-        self.models_parameters_map["discriminator"]["optimizer"].apply_gradients(
+        self.models_to_parameters_map["discriminator"]["optimizer"].apply_gradients(
             zip(discriminator_gradients, self.discriminator.trainable_weights)
         )
 
-        self.models_parameters_map["discriminator"]["loss_tracker"].update_state(discriminator_loss)
+        self.models_to_parameters_map["discriminator"]["loss_tracker"].update_state(discriminator_loss)
 
     def train_step(self, data):
 
@@ -706,12 +706,12 @@ class KerasBasedMINSTConditionalGanModel(tf.keras.Model):
 
         generator_gradients = generator_tape.gradient(generator_loss, self.generator.trainable_weights)
 
-        self.models_parameters_map["generator"]["optimizer"].apply_gradients(
+        self.models_to_parameters_map["generator"]["optimizer"].apply_gradients(
             zip(generator_gradients, self.generator.trainable_weights))
 
-        self.models_parameters_map["generator"]["loss_tracker"].update_state(generator_loss)
+        self.models_to_parameters_map["generator"]["loss_tracker"].update_state(generator_loss)
 
         return {
-            "generator_loss": self.models_parameters_map["generator"]["loss_tracker"].result(),
-            "discriminator_loss": self.models_parameters_map["discriminator"]["loss_tracker"].result(),
+            "generator_loss": self.models_to_parameters_map["generator"]["loss_tracker"].result(),
+            "discriminator_loss": self.models_to_parameters_map["discriminator"]["loss_tracker"].result(),
         }

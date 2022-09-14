@@ -92,6 +92,9 @@ def train_keras_mnist_conditional_gan(_context, config_path):
     Train a simple conditional GAN on MNIST dataset.
     Model is implemented using keras interafce
 
+    Partially based on
+    https://github.com/keras-team/keras-io/blob/master/examples/generative/conditional_gan.py
+
     Args:
         _context (invoke.Context): invoke context instance
         config_path (str): path to configuration file
