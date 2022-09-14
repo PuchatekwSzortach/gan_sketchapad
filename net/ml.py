@@ -476,6 +476,47 @@ class ConditinalGanTrainingManager:
             ))
 
 
+class ConditionalGanCallback(tf.keras.callbacks.Callback):
+    """
+    Callback for keras-based conditional gan model
+    """
+
+    def __init__(self, logger: logging.Logger):
+
+        super().__init__()
+
+        self.logger = logger
+
+    def on_epoch_end(self, epoch, logs=None):
+
+        if epoch % 10 == 0:
+
+            self.logger.info(f"<h2>Epoch {epoch}</h2>")
+
+            images_per_category = 4
+
+            noise = np.random.normal(
+                0, 1, size=[images_per_category * self.model.categories_count, self.model.noise_input_size])
+
+            artificial_labels = np.tile(
+                range(self.model.categories_count), images_per_category).astype(np.float32)
+
+            generated_images = (255 * self.model.generator.predict(
+                [noise, artificial_labels]).reshape(-1, 28, 28)).astype(np.int32)
+
+            figure = plt.figure()
+
+            for index in range(len(generated_images)):
+                plt.subplot(images_per_category, self.model.categories_count, index + 1)
+                plt.axis("off")
+                plt.imshow(generated_images[index], cmap="gray")
+
+            self.logger.info(vlogging.VisualRecord(
+                title="generated images",
+                imgs=figure
+            ))
+
+
 class KerasBasedMINSTConditionalGanModel(tf.keras.Model):
     """
     Keras based mnist conditional gan model
