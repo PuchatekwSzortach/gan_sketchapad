@@ -14,7 +14,7 @@ GAN models used in this project are largery based on
 ### Setting up environment
 
 Minimal host-side python environment is needed to run helper commands.
-You can install one using `conda` and provided `conda.yaml` environment definition, but any python 3.x version with [invoke](https://www.pyinvoke.org/) installed should work as well.
+You can install one using [conda](https://docs.conda.io) and provided `conda.yaml` environment definition, but any python 3.x version with [invoke](https://www.pyinvoke.org/) installed should work as well.
 
 Docker container is provided for running the core code.
 You can build the container with `invoke docker.build-app-container` and run it with `invoke docker.run`.
