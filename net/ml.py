@@ -619,9 +619,6 @@ class KerasBasedMINSTConditionalGanModel(tf.keras.Model):
 
         x = tf.keras.layers.Flatten()(x)
 
-        # dropout
-        x = tf.keras.layers.Dropout(0.4)(x)
-
         x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
 
         # define and compile model
